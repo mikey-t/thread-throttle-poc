@@ -11,8 +11,8 @@ import java.util.concurrent.*;
 public class MessageReservoir implements Runnable, IMessageReservoir {
     private static final Logger log = LoggerFactory.getLogger(MessageReservoir.class);
     public static final int RESERVOIR_TIMEOUT_SECONDS = 2;
-    public static final int RESERVOIR_SOFT_MAX = 20;
-    public static final int REQUEST_MAX = 10;
+    public static final int RESERVOIR_SOFT_MAX = 200;
+    public static final int REQUEST_MAX = 100;
 
     private final MessageProviderMock messageProvider;
     private final ProcessShutdownState shutdownState;

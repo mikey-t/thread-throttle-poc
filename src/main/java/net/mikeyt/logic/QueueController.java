@@ -7,8 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.*;
 
 public class QueueController extends Thread {
-    private static Logger log = LoggerFactory.getLogger(QueueController.class);
-    private static long GRACEFUL_TERMINATION_SECONDS = 15;
+    private static final Logger log = LoggerFactory.getLogger(QueueController.class);
 
     private final ProcessShutdownState shutdownState = new ProcessShutdownState();
     private final ExecutorService executor;
@@ -21,7 +20,7 @@ public class QueueController extends Thread {
 
     @Override
     public void run() {
-        BlockingQueue<Message> queue = new LinkedBlockingQueue<>(10);
+        BlockingQueue<Message> queue = new LinkedBlockingQueue<>(QueueOptions.CONCURRENT_MESSAGE_HANDLERS);
 
         MessageReservoir reservoir = new MessageReservoir(new MessageProviderMock(), shutdownState);
 
@@ -35,8 +34,8 @@ public class QueueController extends Thread {
         executor.shutdown();
         shutdownState.setShutdown(true);
         try {
-            if (!executor.awaitTermination(GRACEFUL_TERMINATION_SECONDS, TimeUnit.SECONDS)) {
-                log.warn("Waited " + GRACEFUL_TERMINATION_SECONDS + " seconds but processes still running - interrupting them now");
+            if (!executor.awaitTermination(QueueOptions.GRACEFUL_TERMINATION_SECONDS, TimeUnit.SECONDS)) {
+                log.warn("Waited " + QueueOptions.GRACEFUL_TERMINATION_SECONDS + " seconds but processes still running - interrupting them now");
                 executor.shutdownNow();
             }
         } catch (InterruptedException ex) {
@@ -46,8 +45,6 @@ public class QueueController extends Thread {
     }
 
     private void addShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            shutdownAndAwaitTermination();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdownAndAwaitTermination));
     }
 }

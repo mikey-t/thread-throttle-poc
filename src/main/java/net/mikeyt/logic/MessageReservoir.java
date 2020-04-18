@@ -9,11 +9,10 @@ import java.util.List;
 import java.util.concurrent.*;
 
 public class MessageReservoir implements Runnable, IMessageReservoir {
-    private static Logger log = LoggerFactory.getLogger(MessageReservoir.class);
-    private static final int QUEUE_POLLING_TIMEOUT_SECONDS = 3;
-    private static final int TIMEOUT_SECONDS = 2;
-    private static final int RESERVOIR_SOFT_MAX = 20;
-    private static final int REQUEST_MAX = 10;
+    private static final Logger log = LoggerFactory.getLogger(MessageReservoir.class);
+    public static final int RESERVOIR_TIMEOUT_SECONDS = 2;
+    public static final int RESERVOIR_SOFT_MAX = 20;
+    public static final int REQUEST_MAX = 10;
 
     private final MessageProviderMock messageProvider;
     private final ProcessShutdownState shutdownState;
@@ -27,14 +26,14 @@ public class MessageReservoir implements Runnable, IMessageReservoir {
 
     @Override
     public void run() {
-        executor.scheduleWithFixedDelay(new Thread(() -> runAsync()), 0, TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(new Thread(this::runAsync), 0, RESERVOIR_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     @SneakyThrows
     @Override
     public Message getNextMessage() {
         // Polling is used so processes have an opportunity to gracefully shutdown
-        return reservoirQueue.poll(QUEUE_POLLING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        return reservoirQueue.poll(QueueOptions.QUEUE_POLLING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     private void runAsync() {
@@ -52,7 +51,7 @@ public class MessageReservoir implements Runnable, IMessageReservoir {
 
     private void fillUntilFull() {
         if (isFull()) {
-            log.info("Reservoir is full, waiting " + TIMEOUT_SECONDS + " seconds to request more messages");
+            log.info("Reservoir is still full at beginning of new fill loop, waiting " + RESERVOIR_TIMEOUT_SECONDS + " seconds to request more messages");
             return;
         }
 
@@ -60,19 +59,21 @@ public class MessageReservoir implements Runnable, IMessageReservoir {
         while (true) {
             List<Message> newMessages = messageProvider.getMessages(REQUEST_MAX);
             if (newMessages.size() == 0) {
-                log.info("No messages returned from provider, exiting fillUntilFull loop and waiting " + TIMEOUT_SECONDS + " seconds");
+                log.info("No messages returned from provider, exiting fill loop and waiting " + RESERVOIR_TIMEOUT_SECONDS + " seconds");
                 return;
             }
+
             reservoirQueue.addAll(newMessages);
-            log.info("reservoirQueue.remainingCapacity: " + reservoirQueue.remainingCapacity());
-            if (reservoirQueue.remainingCapacity() < REQUEST_MAX) {
-                log.info("Message reservoir full");
+
+            if (isFull()) {
+                log.info("Message reservoir full (remaining capacity less than REQUEST_MAX), exiting fill loop");
                 return;
             }
         }
     }
 
     private boolean isFull() {
+        log.info("reservoirQueue.remainingCapacity(): " + reservoirQueue.remainingCapacity());
         return reservoirQueue.remainingCapacity() < REQUEST_MAX;
     }
 }

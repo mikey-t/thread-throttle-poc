@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class MessageProducer implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(MessageProducer.class);
@@ -24,17 +25,29 @@ public class MessageProducer implements Runnable {
         try {
             while (true) {
                 if (shutdownState.isShutdown()) {
-                    log.info("MessageProducer shutting down");
+                    shutdown();
                     return;
                 }
-                // Polling is used so processes have an opportunity to gracefully shutdown
+
+                // Note the reservoir.getNextMessage method is doing polling and returning null when none available within timeout period
                 Message message = reservoir.getNextMessage();
                 if (message != null) {
-                    messageQueue.put(reservoir.getNextMessage());
+                    boolean putSuccess;
+                    do {
+                        if (shutdownState.isShutdown()) {
+                            shutdown();
+                            return;
+                        }
+                        putSuccess = messageQueue.offer(message, QueueOptions.SHUTDOWN_SAFE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    } while (!putSuccess);
                 }
             }
         } catch (InterruptedException ex) {
             log.info("MessageProducer thread interrupted");
         }
+    }
+
+    private void shutdown() {
+        log.info("MessageProducer shutting down");
     }
 }

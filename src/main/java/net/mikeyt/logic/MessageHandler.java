@@ -18,9 +18,9 @@ public class MessageHandler implements Runnable {
 
     @SneakyThrows
     public void processMessage() {
-        log.info(String.format("start processing message (%s milliseconds) %s", message.getMockProcessingMillis(), message.toString()));
+        log.info("start processing message " + message.toString());
         Thread.sleep(message.getMockProcessingMillis()); // Simulate processing time
-        log.info(String.format("finished processing message (%s milliseconds) %s", message.getMockProcessingMillis(), message.toString()));
+        log.info("finished processing message " + message.toString());
     }
 
     @Override

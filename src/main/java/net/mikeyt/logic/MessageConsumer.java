@@ -9,19 +9,16 @@ import java.util.concurrent.*;
 
 public class MessageConsumer implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(MessageConsumer.class);
-    private static final int NUM_CONCURRENT_HANDLERS = 2;
-    private static final int TERMINATION_MAX_SECONDS = 10;
-    private static final int QUEUE_POLLING_TIMEOUT_SECONDS = 3;
 
     private final BlockingQueue<Message> messageQueue;
     private final ProcessShutdownState shutdownState;
     private final ExecutorService executor;
-    private final Semaphore semaphore = new Semaphore(NUM_CONCURRENT_HANDLERS);
+    private final Semaphore semaphore = new Semaphore(QueueOptions.CONCURRENT_MESSAGE_HANDLERS);
 
     public MessageConsumer(BlockingQueue<Message> messageQueue, ProcessShutdownState shutdownState) {
         this.messageQueue = messageQueue;
         this.shutdownState = shutdownState;
-        executor = Executors.newFixedThreadPool(NUM_CONCURRENT_HANDLERS);
+        executor = Executors.newFixedThreadPool(QueueOptions.CONCURRENT_MESSAGE_HANDLERS);
     }
 
     @SneakyThrows
@@ -35,7 +32,7 @@ public class MessageConsumer implements Runnable {
                 }
 
                 // Polling is used so processes have an opportunity to gracefully shutdown
-                Message message = messageQueue.poll(QUEUE_POLLING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                Message message = messageQueue.poll(QueueOptions.QUEUE_POLLING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
                 if (shutdownState.isShutdown() || message == null) {
                     continue;
@@ -63,7 +60,7 @@ public class MessageConsumer implements Runnable {
         log.warn("MessageConsumer shutting down and attempting to shutdown handlers");
         executor.shutdown();
         try {
-            if (!executor.awaitTermination(TERMINATION_MAX_SECONDS, TimeUnit.SECONDS)) {
+            if (!executor.awaitTermination(QueueOptions.SHUTDOWN_SAFE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 log.warn("Handler shutdown took too long, calling shutdownNow");
                 executor.shutdownNow();
             }

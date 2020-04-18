@@ -20,6 +20,8 @@ public class QueueController extends Thread {
 
     @Override
     public void run() {
+        logOptions();
+
         BlockingQueue<Message> queue = new LinkedBlockingQueue<>(QueueOptions.CONCURRENT_MESSAGE_HANDLERS);
 
         MessageReservoir reservoir = new MessageReservoir(new MessageProviderMock(), shutdownState);
@@ -46,5 +48,10 @@ public class QueueController extends Thread {
 
     private void addShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdownAndAwaitTermination));
+    }
+
+    private void logOptions() {
+        log.info("CONCURRENT_MESSAGE_HANDLERS: " + QueueOptions.CONCURRENT_MESSAGE_HANDLERS);
+        log.info("Runtime availableProcessors: " + Runtime.getRuntime().availableProcessors());
     }
 }

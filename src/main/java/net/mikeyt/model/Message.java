@@ -16,4 +16,8 @@ public class Message {
         this.timeReceived = timeReceived;
         this.mockProcessingMillis = mockProcessingMillis;
     }
+
+    public String toString() {
+        return String.format("id:%s mockProcessingMillis:%s", id, mockProcessingMillis);
+    }
 }
